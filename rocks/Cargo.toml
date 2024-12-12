@@ -1,0 +1,18 @@
+[package]
+name = "kv-for-likes_rocks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.94"
+fs_extra = "1.3.0"
+rocksdb = "0.22.0"
+tinyjson = "2.5.1"
+
+[[bin]]
+name = "read"
+path = "src/read.rs"
+
+[[bin]]
+name = "norm"
+path = "src/norm.rs"

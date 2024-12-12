@@ -1,0 +1,14 @@
+[package]
+name = "kv-for-likes_fjall"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.94"
+fjall = "2.4.1"
+tikv-jemallocator = "0.6.0"
+tinyjson = "2.5.1"
+
+[[bin]]
+name = "read"
+path = "src/read.rs"

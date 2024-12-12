@@ -1,0 +1,13 @@
+[package]
+name = "kv-for-likes_redb"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.94"
+redb = "2.2.0"
+tinyjson = "2.5.1"
+
+[[bin]]
+name = "read"
+path = "src/read.rs"
