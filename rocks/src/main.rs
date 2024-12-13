@@ -7,6 +7,8 @@ use fs_extra::dir::get_size;
 use rocksdb::{DB, Options, WriteOptions, MergeOperands};
 use tinyjson::JsonValue;
 
+pub mod store;
+
 const DB_PATH: &str = "./rocks.db";
 const LIKES_PATH: &str = "../likes5-simple.jsonl";
 
