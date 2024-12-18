@@ -1,10 +1,13 @@
 use std::fs;
 use std::io::{self, BufRead};
 use std::time::Instant;
-use fjall::{Config, PartitionHandle, PersistMode, PartitionCreateOptions};
+use fjall::{self, PartitionHandle, PartitionCreateOptions};
 
 const DB_PATH: &str = "./likes.fjall";
 const LIKES_PATH: &str = "../likes5M-anon.txt";
+
+// for the following test: `sort ../likes5M-anon.txt > ../likes5M-anon-sorted.txt`
+// const LIKES_PATH: &str = "../likes5M-anon-sorted.txt"; // does not repro
 
 fn check_count(part: PartitionHandle, expected: usize) {
     print!("checking {}: ", part.name);
@@ -25,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     {
         let reader = io::BufReader::new(fs::File::open(LIKES_PATH)?);
-        let keyspace = Config::new(DB_PATH).open()?;
+        let keyspace = fjall::Config::new(DB_PATH).open()?;
         let likes = keyspace.open_partition("likes", PartitionCreateOptions::default())?;
         let unlikes = keyspace.open_partition("unlikes", PartitionCreateOptions::default())?;
 
@@ -43,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 (_, _) => panic!("action must be 'c' or 'd'"),
             }
         }
-        keyspace.persist(PersistMode::SyncData)?;
+        // keyspace.persist(fjall::PersistMode::SyncAll)?; // <- repros with or without this
         let d = t0.elapsed();
         println!("done in {:.1}s. likes: {}, unlikes: {}", d.as_secs_f32(), n_likes, n_unlikes);
         check_count(likes, n_likes);
@@ -52,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     {
         println!("reopening keyspace...");
-        let keyspace = Config::new(DB_PATH).open()?;
+        let keyspace = fjall::Config::new(DB_PATH).open()?;
         let likes = keyspace.open_partition("likes", PartitionCreateOptions::default())?;
         let unlikes = keyspace.open_partition("unlikes", PartitionCreateOptions::default())?;
         check_count(likes, n_likes);
