@@ -1,3 +1,5 @@
 likes5-simple.jsonl
 sampled-subjects-100k.txt
 sampled-subjects-10k.txt
+.DS_Store
+likes5M-anon-sorted.txt
