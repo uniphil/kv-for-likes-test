@@ -1,7 +1,7 @@
-use std::fs::File;
+use std::fs;
 use std::io::{self, BufRead};
 use std::str::FromStr;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use anyhow::{anyhow, Result};
 use fjall::{Config, PersistMode, PartitionCreateOptions};
 use tikv_jemallocator::Jemalloc;
@@ -12,17 +12,7 @@ static GLOBAL: Jemalloc = Jemalloc;
 const DB_PATH: &str = "./likes.fjall";
 const LIKES_PATH: &str = "../likes5M-anon.txt";
 
-const CHECKIN_STEP: u64 = 10_000;
 const SYNC_STEP: u64 = 100;
-
-
-#[derive(Debug, Default)]
-struct Stats {
-    entries: u64,
-    likes: u64,
-    unlikes: u64,
-    subjects: u64,
-}
 
 #[derive(Debug)]
 enum Action {
@@ -50,16 +40,14 @@ impl FromStr for Action {
     }
 }
 
-fn show_update(d: Duration, size: u64, stats: &Stats) {
-    println!("{}\t{}\t{:.3}", stats.entries, size, d.as_secs_f32());
-}
-
-
 fn main() -> Result<()> {
-    let reader = io::BufReader::new(File::open(LIKES_PATH)?);
+    // ensure a clean start
+    fs::remove_dir_all(DB_PATH).or_else(|e| if e.kind() == io::ErrorKind::NotFound { Ok(()) } else { Err(e) })?;
+
+    let reader = io::BufReader::new(fs::File::open(LIKES_PATH)?);
 
     let mut n_likes = 0;
-    let mut stats: Stats = Default::default();
+    let mut n_unlikes = 0;
     let t0 = Instant::now();
 
     {
@@ -70,8 +58,7 @@ fn main() -> Result<()> {
 
         for line in reader.lines() {
             let action: Action = line?.parse()?;
-            let checkin = (stats.entries % CHECKIN_STEP) == (CHECKIN_STEP - 1);
-            let sync = (stats.entries % SYNC_STEP) == (SYNC_STEP - 1);
+            let sync = ((n_likes + n_unlikes) % SYNC_STEP) == (SYNC_STEP - 1);
 
             if sync {
                 keyspace.persist(PersistMode::SyncData)?;
@@ -80,39 +67,29 @@ fn main() -> Result<()> {
             match action {
                 Action::Create(key) => {
                     likes.insert(&key, "")?;
-                    stats.likes += 1;
+                    n_likes += 1;
                 }
                 Action::Delete(key) => {
                     unlikes.insert(&key, "")?;
-                    stats.unlikes += 1;
+                    n_unlikes += 1;
                 }
-            }
-            stats.entries += 1;
-
-            if checkin {
-                show_update(t0.elapsed(), keyspace.disk_space(), &stats);
-            }
-
-            if stats.entries >= 5_000_000 {
-                break
             }
         }
 
         keyspace.persist(PersistMode::SyncData)?;
         let d = t0.elapsed();
-        println!("done in {:.1}s. entries: {}, likes: {}, unlikes: {}, subjects: {}",
-            d.as_secs_f32(), stats.entries, stats.likes, stats.unlikes, stats.subjects);
+        println!("done in {:.1}s. likes: {}, unlikes: {}", d.as_secs_f32(), n_likes, n_unlikes);
 
         {
             let n = likes.iter().count();
-            if n as u64 != stats.likes {
-                println!("FAIL: before close: likes {} != {}", n, stats.likes);
+            if n as u64 != n_likes {
+                println!("FAIL: before close: likes {} != {}", n, n_likes);
             }
         }
         {
             let n = unlikes.iter().count();
-            if n as u64 != stats.unlikes {
-                println!("FAIL: before close: unlikes {} != {}", n, stats.unlikes);
+            if n as u64 != n_unlikes {
+                println!("FAIL: before close: unlikes {} != {}", n, n_unlikes);
             }
         }
 
@@ -127,14 +104,14 @@ fn main() -> Result<()> {
 
         {
             let n = likes.iter().count();
-            if n as u64 != stats.likes {
-                println!("FAIL: after close: likes {} != {}", n, stats.likes);
+            if n as u64 != n_likes {
+                println!("FAIL: after close: likes {} != {}", n, n_likes);
             }
         }
         {
             let n = unlikes.iter().count();
-            if n as u64 != stats.unlikes {
-                println!("FAIL: after close: unlikes {} != {}", n, stats.unlikes);
+            if n as u64 != n_unlikes {
+                println!("FAIL: after close: unlikes {} != {}", n, n_unlikes);
             }
         }
 
@@ -143,6 +120,5 @@ fn main() -> Result<()> {
 
     println!("byeeeeee");
 
-    // TODO: not sure how to count subjects
     Ok(())
 }
