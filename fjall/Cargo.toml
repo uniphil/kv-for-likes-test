@@ -10,5 +10,13 @@ tikv-jemallocator = "0.6.0"
 tinyjson = "2.5.1"
 
 [[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
 name = "read"
 path = "src/read.rs"
+
+[[bin]]
+name = "lost-write"
+path = "src/lost-write.rs"
